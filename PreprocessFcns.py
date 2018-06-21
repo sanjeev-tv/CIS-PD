@@ -5,8 +5,9 @@ import pywt
 import pathlib
 import pickle #to save files
 from itertools import product
-from scipy.stats import skew, kurtosis
+from scipy.stats import skew, kurtosis, entropy
 from scipy.signal import butter, welch, filtfilt
+import math
 import nolds
 
 
@@ -259,6 +260,7 @@ def BPfilter(act_dict,task,loc,cutoff_low=3,cutoff_high=8,order=4):
 def filterdata(act_dict,task,loc,trial,sensor='accel',ftype='highpass',cutoff=0.5,cutoff_bp=[3,8],order=4):
 
     rawdata = act_dict[task][trial][loc][sensor]
+    rawdata 
     if not rawdata.empty:
         idx = rawdata.index
         idx = idx-idx[0]
@@ -344,7 +346,6 @@ def feature_extraction_EMG(clip_data):
         rawdata = clip_data[trial]['elec']['data'][c]
 
         rawdata_wmag = rawdata.copy()
-        #rawdata_wmag['Elec_Mag'] = np.sqrt((rawdata**2).sum(axis=1))
 
         N = len(rawdata)
         RMS = 1/N*np.sqrt(np.sum(rawdata**2))
@@ -375,11 +376,12 @@ def feature_extraction_EMG(clip_data):
     F = np.asarray(features)
     clip_data[trial]['elec']['features'] = pd.DataFrame(data=F,columns=features_list,dtype='float32')
     
-def gen_clips_EMG(act_dict,task,trial,location,clipsize=5000,overlap=0,verbose=False,startTS=0,endTS=1,len_tol=0.8,resample=False):
+def gen_clips_EMG(act_dict,subj,task,trial,location,clipsize=5000,overlap=0,verbose=False,startTS=0,endTS=1,len_tol=0.8,resample=False):
 
     clip_data = {} #the dictionary with clips
     clip_data[trial] = {}
     sensor = 'elec'
+    Unused_Data = pd.DataFrame()
 
     rawdata = act_dict[task][trial][location][sensor]
     #reindex time (relative to start)
@@ -406,15 +408,87 @@ def gen_clips_EMG(act_dict,task,trial,location,clipsize=5000,overlap=0,verbose=F
             c = rawdata[(rawdata.index>=i) & (rawdata.index<i+clipsize)]
             if len(c) > len_tol*int(clipsize/deltat): #discard clips whose length is less than len_tol% of the window size
                 clips.append(c)
+                #else:
+                    #D = c
+                    #D['Subject'] = subj
+                    #D['Trial'] = trial
+                    #D['Task'] = task
+                    #D['Location'] = location
+                    #Unused_Data = pd.concat([Unused_Data,D])
 
     #store clip length
     clip_len = [clips[c].index[-1]-clips[c].index[0] for c in range(len(clips))] #store the length of each clip
     #assemble in dict
     clip_data[trial][sensor] = {'data':clips, 'clip_len':clip_len}
     
-    #DWT
-    #haar = pywt.Wavelet('haar')
-    #rawdata = rawdata.values[:,-1]
-    #a = pywt.wavedec(rawdata,haar,level=10)
-
+    #Unused_Data = Unused_Data[['Subject','Trial','Task','Location']]
+    #Unused_Data.to_csv('Z:CIS-PD Study\MotorTasks Unused EMG Data.csv')
+    
     return clip_data
+
+def feature_extraction_DWT(clip_data):
+    
+    features_list = ['RMS','mean','var','skew','kurt','binen','energy','MAV']
+    feature_cols = []
+    for w in range(11):
+        for i in range(len(features_list)):
+            feature_cols = feature_cols + [features_list[i] + str(w)]
+    
+    trial = list(clip_data.keys())[0]
+        
+    features_data = []
+    
+    for c in range(len(clip_data[trial]['elec']['data'])):
+        clip = clip_data[trial]['elec']['data'][c]
+        features = []
+        
+        if np.max(clip)[0] > 10*np.mean(clip)[0]:
+            
+            features = np.full(88,np.nan)
+        
+        else:
+            
+            haar = pywt.Wavelet('haar')
+            clip = clip.values[:,-1]
+            DWT = pywt.wavedec(clip,haar,level=10)
+
+            for w in range(len(DWT)):
+
+                rawdata = DWT[w]
+                rawdatab = rawdata.copy()
+
+                N = len(rawdata)
+                RMS = 1/N*np.sqrt(np.sum(rawdata**2))
+
+                #r = np.max(rawdata) - np.min(rawdata)
+
+                mean = np.mean(rawdata)
+                var = np.std(rawdata)
+                sk = skew(rawdata)
+                kurt = kurtosis(rawdata)
+
+                for i in range(len(rawdatab)):
+                    rawdatab[i] = round((rawdatab[i] - mean)/var)
+                binen = 0
+                for i in np.unique(rawdatab):
+                    count = 0
+                    for j in rawdatab:
+                        if j==i:
+                            count += 1
+                    p = count / N
+                    binen += -1*p*math.log2(p)
+
+                energy = 0
+                for i in rawdata:
+                    energy += i**2
+
+                mav = np.mean(np.absolute(rawdata))
+
+                features = features + [RMS,mean,var,sk,kurt,binen,energy,mav]
+            
+        
+        features_data.append(np.array(features))
+
+    F = np.asarray(features_data)
+    clip_data[trial]['elec']['features'] = pd.DataFrame(data=F,columns=feature_cols,dtype='float32')
+    
