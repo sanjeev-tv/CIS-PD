@@ -6,7 +6,7 @@ import pathlib
 import pickle #to save files
 from itertools import product
 from scipy.stats import skew, kurtosis, entropy
-from scipy.signal import butter, welch, filtfilt
+from scipy.signal import butter, welch, filtfilt, resample
 import math
 import nolds
 
@@ -529,7 +529,7 @@ def filterdata(rawdata,ftype='highpass',cutoff=0.75,cutoff_bp=[3,8],order=4):
         return rawdatafilt
     
     
-def gen_clips(rawdata,clipsize=5000,overlap=0.5,verbose=False,startTS=0,endTS=1,len_tol=0.8,resample=False):
+def gen_clips(rawdata,clipsize=5000,overlap=0.5,verbose=False,startTS=0,endTS=1,len_tol=0.8,downsample=62.5,basefreq=62.5):
 
     clip_data = {} #the dictionary with clips
 
@@ -556,6 +556,9 @@ def gen_clips(rawdata,clipsize=5000,overlap=0.5,verbose=False,startTS=0,endTS=1,
         for i in idx:
             c = rawdata[(rawdata.index>=i) & (rawdata.index<i+clipsize)]
             if len(c) > len_tol*int(clipsize/deltat): #discard clips whose length is less than len_tol% of the window size
+                c = resample(c,round(downsample*len(c)/62.5))
+                c = pd.DataFrame(data=c)
+                
                 clips.append(c)
 
     #store clip length
@@ -580,7 +583,7 @@ def feature_extraction(clip_data):
         rawdata = clip_data['data'][c]
         #acceleration magnitude
         rawdata_wmag = rawdata.copy()
-        rawdata_wmag['Accel_Mag']=np.sqrt((rawdata**2).sum(axis=1))
+        #rawdata_wmag['Accel_Mag']=np.sqrt((rawdata**2).sum(axis=1))
 
         #extract features on current clip
 
