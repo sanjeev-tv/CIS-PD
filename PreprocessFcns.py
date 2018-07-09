@@ -436,7 +436,7 @@ def filterdata(rawdata,ftype='highpass',cutoff=0.75,cutoff_bp=[3,8],order=4):
         return rawdatafilt
     
     
-def gen_clips(rawdata,clipsize=5000,overlap=0.5,verbose=False,startTS=0,endTS=1,len_tol=0.8,downsample=62.5,basefreq=62.5):
+def gen_clips_mc10(rawdata,clipsize=5000,overlap=0.5,verbose=False,startTS=0,endTS=1,len_tol=0.8,downsample=62.5,basefreq=62.5):
 
     clip_data = {} #the dictionary with clips
 
@@ -481,7 +481,8 @@ def feature_extraction(clip_data):
     features_list = ['RMSX','RMSY','RMSZ','rangeX','rangeY','rangeZ','meanX','meanY','meanZ','varX','varY','varZ',
                     'skewX','skewY','skewZ','kurtX','kurtY','kurtZ','xcor_peakXY','xcorr_peakXZ','xcorr_peakYZ',
                     'xcorr_lagXY','xcorr_lagXZ','xcorr_lagYZ','Dom_freq','Pdom_rel','PSD_mean','PSD_std','PSD_skew',
-                    'PSD_kur','jerk_mean','jerk_std','jerk_skew','jerk_kur','Sen_X','Sen_Y','Sen_Z']
+                    'PSD_kur','jerk_mean','jerk_std','jerk_skew','jerk_kur','Sen_X','Sen_Y','Sen_Z','RMS_mag','range_mag',
+                    'mean_mag','var_mag','skew_mag','kurt_mag','Sen_mag']
 
 
     #cycle through all clips for current trial and save dataframe of features for current trial and sensor
@@ -490,24 +491,33 @@ def feature_extraction(clip_data):
         rawdata = clip_data['data'][c]
         #acceleration magnitude
         rawdata_wmag = rawdata.copy()
-        #rawdata_wmag['Accel_Mag']=np.sqrt((rawdata**2).sum(axis=1))
+        rawdata_wmag['Accel_Mag']=np.sqrt((rawdata**2).sum(axis=1))
 
         #extract features on current clip
 
         #Root mean square of signal on each axis
         N = len(rawdata)
         RMS = 1/N*np.sqrt(np.asarray(np.sum(rawdata**2,axis=0)))
+        
+        RMS_mag = 1/N*np.sqrt(np.sum(rawdata_wmag['Accel_Mag']**2,axis=0))
 
         #range on each axis
         min_xyz = np.min(rawdata,axis=0)
         max_xyz = np.max(rawdata,axis=0)
         r = np.asarray(max_xyz-min_xyz)
+        
+        r_mag = np.max(rawdata_wmag['Accel_Mag']) - np.min(rawdata_wmag['Accel_Mag'])
 
         #Moments on each axis
         mean = np.asarray(np.mean(rawdata,axis=0))
         var = np.asarray(np.std(rawdata,axis=0))
         sk = skew(rawdata)
         kurt = kurtosis(rawdata)
+        
+        mean_mag = np.mean(rawdata_wmag['Accel_Mag'])
+        var_mag = np.std(rawdata_wmag['Accel_Mag'])
+        sk_mag = skew(rawdata_wmag['Accel_Mag'])
+        kurt_mag = kurtosis(rawdata_wmag['Accel_Mag'])
 
         #Cross-correlation between axes pairs
         xcorr_xy = np.correlate(rawdata.iloc[:,0],rawdata.iloc[:,1],mode='same')
@@ -552,9 +562,12 @@ def feature_extraction(clip_data):
             #for now disable SH on fft
             # f,Pxx_den = welch(x,Fs,nperseg=min(256,n/4))
             # sH_fft.append(nolds.sampen(Pxx_den)) #samp entr fft
+            
+        sH_mag = nolds.sampen(rawdata_wmag['Accel_Mag'])
 
         #Assemble features in array
-        X = np.concatenate((RMS,r,mean,var,sk,kurt,xcorr_peak,xcorr_lag,domfreq,Pdom_rel,Pxx_moments,jerk_moments,sH_raw))
+        Y = np.array([RMS_mag,r_mag,mean_mag,var_mag,sk_mag,kurt_mag,sH_mag])
+        X = np.concatenate((RMS,r,mean,var,sk,kurt,xcorr_peak,xcorr_lag,domfreq,Pdom_rel,Pxx_moments,jerk_moments,sH_raw,Y))
         features.append(X)
 
     F = np.asarray(features) #feature matrix for all clips from current trial
