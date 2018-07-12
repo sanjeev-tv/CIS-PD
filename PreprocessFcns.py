@@ -17,7 +17,7 @@ def gen_clips(act_dict,task,location,clipsize=5000,overlap=0,verbose=False,start
 
     clip_data = {} #the dictionary with clips
     for trial in list(act_dict[task].keys()):
-
+    
         for s in ['accel','gyro','elec']:
 
             if verbose:
@@ -167,7 +167,7 @@ def BPfilter(act_dict,task,loc,cutoff_low=3,cutoff_high=8,order=4):
 def filterdata(act_dict,task,loc,trial,sensor='accel',ftype='highpass',cutoff=0.5,cutoff_bp=[3,8],order=4):
 
     rawdata = act_dict[task][trial][loc][sensor]
-    rawdata
+    rawdata 
     if not rawdata.empty:
         idx = rawdata.index
         idx = idx-idx[0]
@@ -240,14 +240,14 @@ def powerspectra(x,fm,fM,nbins=10,relative=False,binavg=True):
 
     else:
         return Pxx.iloc[bins,:], labels
-
-
+    
+     
 def feature_extraction_EMG(clip_data):
-
+    
     features_list = ['RMS','range','mean','var','skew','kurt','Pdom_rel','Dom_freq','Sen','PSD_mean','PSD_std','PSD_skew','PSD_kurt']
-
+    
     trial = list(clip_data.keys())[0]
-
+        
     features = []
     for c in range(len(clip_data[trial]['elec']['data'])):
         rawdata = clip_data[trial]['elec']['data'][c]
@@ -282,7 +282,7 @@ def feature_extraction_EMG(clip_data):
 
     F = np.asarray(features)
     clip_data[trial]['elec']['features'] = pd.DataFrame(data=F,columns=features_list,dtype='float32')
-
+    
 def gen_clips_EMG(act_dict,subj,task,trial,location,clipsize=5000,overlap=0,verbose=False,startTS=0,endTS=1,len_tol=0.8,resample=False):
 
     clip_data = {} #the dictionary with clips
@@ -319,34 +319,34 @@ def gen_clips_EMG(act_dict,subj,task,trial,location,clipsize=5000,overlap=0,verb
     clip_len = [clips[c].index[-1]-clips[c].index[0] for c in range(len(clips))] #store the length of each clip
     #assemble in dict
     clip_data[trial][sensor] = {'data':clips, 'clip_len':clip_len}
-
+    
     #Unused_Data = Unused_Data[['Subject','Trial','Task','Location']]
     #Unused_Data.to_csv('Z:CIS-PD Study\MotorTasks Unused EMG Data.csv')
-
+    
     return clip_data
 
 def feature_extraction_DWT(clip_data):
-
+    
     features_list = ['RMS','mean','var','skew','kurt','binen','energy','MAV']
     feature_cols = []
     for w in range(11):
         for i in range(len(features_list)):
             feature_cols = feature_cols + [features_list[i] + str(w)]
-
+    
     trial = list(clip_data.keys())[0]
-
+        
     features_data = []
-
+    
     for c in range(len(clip_data[trial]['elec']['data'])):
         clip = clip_data[trial]['elec']['data'][c]
         features = []
-
+        
         if np.max(clip)[0] > 10*np.mean(clip)[0]:
-
+            
             features = np.full(88,np.nan)
-
+        
         else:
-
+            
             haar = pywt.Wavelet('haar')
             clip = clip.values[:,-1]
             DWT = pywt.wavedec(clip,haar,level=10)
@@ -384,14 +384,14 @@ def feature_extraction_DWT(clip_data):
                 mav = np.mean(np.absolute(rawdata))
 
                 features = features + [RMS,mean,var,sk,kurt,binen,energy,mav]
-
-
+            
+        
         features_data.append(np.array(features))
 
     F = np.asarray(features_data)
     clip_data[trial]['elec']['features'] = pd.DataFrame(data=F,columns=feature_cols,dtype='float32')
-
-
+    
+    
 def HPfilter(rawdata,cutoff=0.75,ftype='highpass'):
 #highpass (or lowpass) filter data. HP to remove gravity (offset - limb orientation) from accelerometer data from each visit (trial)
 #input: Activity dictionary, cutoff freq [Hz], task, sensor location and type of filter (highpass or lowpass).
@@ -410,7 +410,7 @@ def HPfilter(rawdata,cutoff=0.75,ftype='highpass'):
         rawdatafilt = pd.DataFrame(data=xfilt,index=rawdata.index,columns=rawdata.columns)
         return rawdatafilt
 
-
+    
 def filterdata(rawdata,ftype='highpass',cutoff=0.75,cutoff_bp=[3,8],order=4):
 
     if not rawdata.empty:
@@ -434,8 +434,8 @@ def filterdata(rawdata,ftype='highpass',cutoff=0.75,cutoff_bp=[3,8],order=4):
         xfilt = filtfilt(b,a,x,axis=0)
         rawdatafilt = pd.DataFrame(data=xfilt,index=rawdata.index,columns=rawdata.columns)
         return rawdatafilt
-
-
+    
+    
 def gen_clips_mc10(rawdata,clipsize=5000,overlap=0.5,verbose=False,startTS=0,endTS=1,len_tol=0.8,downsample=62.5,basefreq=62.5):
 
     clip_data = {} #the dictionary with clips
@@ -463,9 +463,9 @@ def gen_clips_mc10(rawdata,clipsize=5000,overlap=0.5,verbose=False,startTS=0,end
         for i in idx:
             c = rawdata[(rawdata.index>=i) & (rawdata.index<i+clipsize)]
             if len(c) > len_tol*int(clipsize/deltat): #discard clips whose length is less than len_tol% of the window size
-                #c = resample(c,round(downsample*len(c)/basefreq),c.index.values)
-                #c = pd.DataFrame(data=c[0],index=c[1].astype('int'))
-
+                c = resample(c,round(downsample*len(c)/basefreq),c.index.values)
+                c = pd.DataFrame(data=c[0],index=c[1].astype('int'))
+                
                 clips.append(c)
 
     #store clip length
@@ -498,14 +498,14 @@ def feature_extraction(clip_data):
         #Root mean square of signal on each axis
         N = len(rawdata)
         RMS = 1/N*np.sqrt(np.asarray(np.sum(rawdata**2,axis=0)))
-
+        
         RMS_mag = 1/N*np.sqrt(np.sum(rawdata_wmag['Accel_Mag']**2,axis=0))
 
         #range on each axis
         min_xyz = np.min(rawdata,axis=0)
         max_xyz = np.max(rawdata,axis=0)
         r = np.asarray(max_xyz-min_xyz)
-
+        
         r_mag = np.max(rawdata_wmag['Accel_Mag']) - np.min(rawdata_wmag['Accel_Mag'])
 
         #Moments on each axis
@@ -513,7 +513,7 @@ def feature_extraction(clip_data):
         var = np.asarray(np.std(rawdata,axis=0))
         sk = skew(rawdata)
         kurt = kurtosis(rawdata)
-
+        
         mean_mag = np.mean(rawdata_wmag['Accel_Mag'])
         var_mag = np.std(rawdata_wmag['Accel_Mag'])
         sk_mag = skew(rawdata_wmag['Accel_Mag'])
@@ -562,7 +562,7 @@ def feature_extraction(clip_data):
             #for now disable SH on fft
             # f,Pxx_den = welch(x,Fs,nperseg=min(256,n/4))
             # sH_fft.append(nolds.sampen(Pxx_den)) #samp entr fft
-
+            
         sH_mag = nolds.sampen(rawdata_wmag['Accel_Mag'])
 
         #Assemble features in array
