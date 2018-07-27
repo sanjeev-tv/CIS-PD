@@ -244,6 +244,8 @@ def powerspectra(x,fm,fM,nbins=10,relative=False,binavg=True):
      
 def feature_extraction_EMG(clip_data):
     
+    #extract features for EMG
+    
     features_list = ['RMS','range','mean','var','skew','kurt','Pdom_rel','Dom_freq','Sen','PSD_mean','PSD_std','PSD_skew','PSD_kurt']
     
     trial = list(clip_data.keys())[0]
@@ -285,6 +287,8 @@ def feature_extraction_EMG(clip_data):
     
 def gen_clips_EMG(act_dict,subj,task,trial,location,clipsize=5000,overlap=0,verbose=False,startTS=0,endTS=1,len_tol=0.8,resample=False):
 
+    #generate EMG clips on a specific trial
+    
     clip_data = {} #the dictionary with clips
     clip_data[trial] = {}
     sensor = 'elec'
@@ -326,6 +330,8 @@ def gen_clips_EMG(act_dict,subj,task,trial,location,clipsize=5000,overlap=0,verb
     return clip_data
 
 def feature_extraction_DWT(clip_data):
+    
+    #Extract EMG features from haar wavelets
     
     features_list = ['RMS','mean','var','skew','kurt','binen','energy','MAV']
     feature_cols = []
@@ -394,7 +400,7 @@ def feature_extraction_DWT(clip_data):
     
 def HPfilter(rawdata,cutoff=0.75,ftype='highpass'):
 #highpass (or lowpass) filter data. HP to remove gravity (offset - limb orientation) from accelerometer data from each visit (trial)
-#input: Activity dictionary, cutoff freq [Hz], task, sensor location and type of filter (highpass or lowpass).
+#input: rawdata, cutoff freq [Hz].
 
     if rawdata.empty is False: #skip if no data for current sensor
         idx = rawdata.index
@@ -412,6 +418,8 @@ def HPfilter(rawdata,cutoff=0.75,ftype='highpass'):
 
     
 def filterdata(rawdata,ftype='highpass',cutoff=0.75,cutoff_bp=[3,8],order=4):
+    
+    #takes rawdata as a parameter
 
     if not rawdata.empty:
         idx = rawdata.index
@@ -438,6 +446,8 @@ def filterdata(rawdata,ftype='highpass',cutoff=0.75,cutoff_bp=[3,8],order=4):
     
 def gen_clips_mc10(rawdata,clipsize=5000,overlap=0.5,verbose=False,startTS=0,endTS=1,len_tol=0.8,downsample=62.5,basefreq=62.5):
 
+    #Used for resampling sensor and watch data
+    
     clip_data = {} #the dictionary with clips
 
     #reindex time (relative to start)
@@ -463,6 +473,7 @@ def gen_clips_mc10(rawdata,clipsize=5000,overlap=0.5,verbose=False,startTS=0,end
         for i in idx:
             c = rawdata[(rawdata.index>=i) & (rawdata.index<i+clipsize)]
             if len(c) > len_tol*int(clipsize/deltat): #discard clips whose length is less than len_tol% of the window size
+                #resample data
                 c = resample(c,round(downsample*len(c)/basefreq),c.index.values)
                 c = pd.DataFrame(data=c[0],index=c[1].astype('int'))
                 
